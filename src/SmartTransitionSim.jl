@@ -7,6 +7,7 @@ using SparseArrays
 using Base.Iterators
 using LightGraphs
 using DataFrames
+using DataStructures
 
 #types
 export Rect, Agent
@@ -15,12 +16,12 @@ export Rect, Agent
 #generate_agents.jl
 export generate_agents, pick_random_node
 #rerouting.jl
-export k_shortest_path_rerouting!
+export k_shortest_path_rerouting!, yen_a_star
 #simulations.jl
 export simulation_run, gather_statistics
 #traffic_model.jl
 export get_max_densities, traffic_constants, init_traffic_variables, next_edge
-export update_weights!, update_event_agent!, update_agents_position!
+export update_weights!, update_event_agent!, update_agents_position!, update_weights_and_events!
 
 #files
 include("types.jl")

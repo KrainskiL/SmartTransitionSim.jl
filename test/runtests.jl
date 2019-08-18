@@ -32,6 +32,9 @@ speeds = OpenStreetMapX.get_velocities(test_map)
 k_shortest_path_rerouting!(test_map, AgentsSet[1], speeds, 3, 1.0)
 @test AgentsSet[1].route[1] == constantNode
 
+k_routes = yen_a_star(test_map.g,test_map.v[AgentsSet[1].route[1]],test_map.v[AgentsSet[1].route[end]],speeds,3)
+
+@test length(k_routes.dists) == 3
 end
 
 #simulations.jl
@@ -47,7 +50,7 @@ ITSOutput = simulation_run("smart",test_map, newAgents, 50, 1.0, 3)
 @test length(ITSOutput) == 3
 @test typeof(ITSOutput) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
 
-output = simulation_run("base",test_map, AgentsSet, debug_level = 0)
+output = simulation_run("base",test_map, AgentsSet)
 stats = gather_statistics(getfield.(AgentsSet,:smart),
                     output.TravelTimes,
                     ITSOutput.TravelTimes)
@@ -67,7 +70,7 @@ densities, speeds = init_traffic_variables(test_map, AgentsSet)
 @test round(sum(max_dens);digits=3) == 206315.887
 
 edge = rand(keys(densities))
-update_weights!(speeds, [edge], densities, max_dens, max_speeds)
+update_weights!(speeds, densities, max_dens, max_speeds)
 #update_weights! tests
 @test speeds[edge[1],edge[2]] < max_speeds[edge[1],edge[2]] && speeds[487,1] == max_speeds[487,1]
 

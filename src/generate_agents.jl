@@ -3,14 +3,14 @@
 ##################################
 """
 `pick_random_node` function is used to set starting and ending node of agents.
-Nodes are randomly chosen from set of rectangles corresponding to areas on map.
+Nodes are randomly chosen from set of provided areas.
 
 **Input parameters**
-* `OSMmap` : OpenStreetMapX mapData type object with road network data
+* `OSMmap` : OpenStreetMapX mapData object with road network data
 * `rects` : vector of Rect types interpreted as a set of rectangle areas
 * `NodesSet` : returning object switch
     * `false` return random node from given area
-    * `true` return set of nodes in given area for further processing
+    * `true` return all nodes in given area for further processing
 """
 function pick_random_node(OSMmap::OpenStreetMapX.MapData,
                           rects::Vector{Rect},
@@ -38,11 +38,11 @@ end
 for initial routes travelled with maximal speed
 
 **Input parameters**
-* `OSMmap` : OpenStreetMapX MapData type object with road network data
+* `OSMmap` : OpenStreetMapX MapData object with road network data
 * `N` : number of agents to be generated
-* `StartArea` : vector of points corresponding to area from which agents randomly pick starting point
-* `EndArea` : vector of points corresponding to area from which agents randomly pick ending point
-* `α` : percentage of smart agentss
+* `StartArea` : vector of areas from which agents randomly pick starting point
+* `EndArea` : vector of areas from which agents randomly pick ending point
+* `α` : percentage of smart agents
 """
 function generate_agents(OSMmap::OpenStreetMapX.MapData,
                         N::Int,

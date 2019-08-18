@@ -4,7 +4,7 @@ Reference
 ```@meta
 CurrentModule = RSUOptimization
 DocTestSetup = quote
-    using RSUOptimization
+    using SmartTransitionSim
 end
 ```
 
@@ -17,27 +17,10 @@ pick_random_node
 generate_agents
 ```
 
-RSU location optimization
-----------------------
-```@docs
-RSU
-get_agent_coordinates
-calculate_RSU_location
-adjust_RSU_availability!
-adjust_RSU_utilization!
-gather_statistics
-```
-
 Rerouting
 ----------------------
 ```@docs
 k_shortest_path_rerouting!
-```
-
-Vehicular communication
-----------------------
-```@docs
-send_weights_update
 ```
 
 Traffic model
