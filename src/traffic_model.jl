@@ -24,7 +24,6 @@ end
 * `OSMmap` : OpenStreetMapX MapData object with road network data
 * `density_factor` : road length reserved for one vehicle
 """
-
 function get_max_densities(OSMmap::MapData,
                            density_factor::Float64 = 5.0)
     roads_lanes = Dict{Int64,Int64}()

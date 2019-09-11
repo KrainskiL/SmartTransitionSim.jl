@@ -10,31 +10,39 @@
     * `smart` : simulation with smart agents enabled
 * `OSMmap` : OpenStreetMapX MapData object with road network data
 * `inAgents` : set of agents created with generate_agents function
+* `k_routes_dict` : dictionary with multiple shortest paths (values) between vertices (keys)
 * `U` : period of weights updates
 * `T` : distribution parameter in k-shortest path rerouting
 * `k` : number of fastest routes generated in rerouting function
 * `density_factor` : road length reserved for one vehicle
 * `debug` : debug messages switch
+* `track_avg_speeds` : return average speeds on edges if true
 """
 function simulation_run(mode::String,
                         OSMmap::MapData,
                         inAgents::Vector{Agent},
+                        k_routes_dict::Dict{Tuple{Int,Int},Array{Vector{Int}}}=
+                        Dict{Tuple{Int,Int},Array{Vector{Int}}}(),
                         U::Int64 = 100,
                         T::Float64 = 1.0,
                         k::Int64 = 3,
                         density_factor::Float64 = 5.0,
-                        debug::Bool = false)
+                        debug::Bool = false;
+                        track_avg_speeds::Bool = false)
     mode = lowercase(mode) #Mode check
     if !in(mode, ["base","smart"]) error("Wrong mode specified.") end
     Agents = deepcopy(inAgents) #Creating working copy of agents
     max_densities, max_speeds = traffic_constants(OSMmap, density_factor) #Traffic characteristic constants
     densities, speeds = init_traffic_variables(OSMmap, Agents) #Traffic characteristic variables
     update_weights!(speeds, densities, max_densities, max_speeds) #Initial speeds update
+    if track_avg_speeds
+        avg_speeds = deepcopy(speeds)
+        tick = 1
+    end
     #Initialize simulation variables
     simtime = 0.0
     steps = 0
     active = length(Agents)
-    if debug modulo = 10^(Int(round(Int, log10(length(Agents)))) - 1) end
     #Calculate initial time to nearest junction for all agents
     times_to_event = next_edge(Agents, speeds, OSMmap.w)
     #Loop until all agents are deactivated
@@ -57,7 +65,8 @@ function simulation_run(mode::String,
                 simtime += next_update #Increase simulation time
                 #Process rerouting for smart agents
                 for a in Agents
-                    a.smart && a.active && k_shortest_path_rerouting!(OSMmap, a, speeds, k, T)
+                    a.smart && a.active &&
+                    k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, speeds, k, T, U)
                 end
                 debug && println("Finished")
                 continue #Skip to next event
@@ -70,18 +79,28 @@ function simulation_run(mode::String,
         changed_edges = update_event_agent!(vAgent, simtime, densities, OSMmap.v)
         if !vAgent.active times_to_event[ID] = Inf end
         #Update speeds and correct events time
-        speed_factors = update_weights_and_events!(Agents, times_to_event,speeds,
-                        changed_edges, densities, max_densities, max_speeds)
+        update_weights_and_events!(Agents, times_to_event,speeds,
+            changed_edges, densities, max_densities, max_speeds)
+        #Update average speeds every 30 secs
+        if track_avg_speeds && simtime > tick*30
+            #Iterative mean
+            tick +=1
+            avg_speeds = ((tick-1)/tick)*avg_speeds+(1/tick)*speeds
+        end
         if vAgent.active times_to_event[ID] = next_edge(vAgent, speeds, OSMmap.w) end
         active = sum(getfield.(Agents,:active))
-        if debug && length(changed_edges) == 1 && active % modulo == 0
-            println("Active agents: $active")
-        end
     end
     times = getfield.(Agents,:travel_time)
-    output_tuple = (Steps = steps,
+    if track_avg_speeds
+        output_tuple = (Steps = steps,
+                    Simtime = simtime,
+                    TravelTimes = times,
+                    AvgSpeeds = avg_speeds)
+    else
+        output_tuple = (Steps = steps,
                     Simtime = simtime,
                     TravelTimes = times)
+    end
     return output_tuple
 end
 

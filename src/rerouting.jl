@@ -7,31 +7,70 @@
 
 **Input parameters**
 * `OSMmap` : OpenStreetMapX MapData object with road network data
+* `k_routes_dict` : dictionary with multiple shortest paths (values) between vertices (keys)
 * `inAgent` : modified agent
 * `speeds` : current speed matrix
 * `k` : number of fastest routes returned
 * `T` : control variable for probability distribution
+* `upd_period` : update period in seconds - if different from 0 enables rerouting based on distance travelled during one update period
 """
 function k_shortest_path_rerouting!(OSMmap::MapData,
+                                    k_routes_dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
                                     inAgent::Agent,
                                     speeds::AbstractMatrix,
                                     k::Int64,
-                                    T::Float64)
-    k_routes = yen_a_star(OSMmap.g, OSMmap.v[inAgent.route[2]],
-                          OSMmap.v[inAgent.end_node], OSMmap.w./speeds, k)
-    if k == 1
-        new_path = k_routes.paths[1]
-    else
-        #Normalize k-paths travelling time
-        norm_time = k_routes.dists/maximum(k_routes.dists)
-        #Calculate probability of being picked for every route
-        exp_ntime = exp.(-norm_time/T)
-        probs = exp_ntime/sum(exp_ntime)
-        #Assign new route
-        new_path = sample(k_routes.paths, StatsBase.weights(probs))
+                                    T::Float64,
+                                    upd_period::Int64 = 0)
+    #Assigning start and end vertices for rerouting
+    vx1 = OSMmap.v[inAgent.route[2]]
+    vx2 = OSMmap.v[inAgent.end_node]
+    #Calculating number of vertices travelled during update period
+    if upd_period != 0
+        route = inAgent.route
+        cutoff = 2
+        travel_time = 0.0
+        while cutoff+1 < length(route) && travel_time < upd_period
+            v1= OSMmap.v[route[cutoff]]
+            v2 = OSMmap.v[route[cutoff+1]]
+            travel_time += OSMmap.w[v1,v2]/speeds[v1,v2]
+            cutoff+=1
+        end
+    #Manual override of cutoff - disabling rerouting on 1-segment route fragments
+    if cutoff == 3 cutoff = 4 end
+    vx2 = OSMmap.v[inAgent.route[cutoff]]
     end
+    #Check if k-shortest paths between vertices is already calculated
+    if !haskey(k_routes_dict,(vx1,vx2))
+        k_routes_dict[(vx1,vx2)] = yen_a_star(OSMmap.g, vx1, vx2, OSMmap.w, 6).paths
+    end
+    #Extract 6 shortest paths and calculate travelling time for each
+    k_paths = k_routes_dict[(vx1,vx2)]
+    time = zeros(length(k_paths))
+    for p in 1:length(k_paths)
+        path = k_paths[p]
+        for i in 1:(length(path)-1)
+            time[p] += OSMmap.w[path[i],path[i+1]]/speeds[path[i],path[i+1]]
+        end
+    end
+    #Remove paths with travelling time longer than doubled minimal time
+    adjusted_k = sum(time.<=2*minimum(time))
+    k = min(adjusted_k,k)
+    #Pick k fastest paths
+    picked_paths = k_paths[sortperm(time)[1:k]]
+    times = time[sortperm(time)[1:k]]
+    #Normalize k-paths travelling time
+    norm_time = times/maximum(times)
+    #Calculate probability of being picked for every route
+    exp_ntime = exp.(-norm_time/T)
+    probs = exp_ntime/sum(exp_ntime)
+    #Assign new route
+    new_path = sample(picked_paths, StatsBase.weights(probs))
     nodes_new_path = map(i-> OSMmap.n[i], new_path)
-    inAgent.route = [inAgent.route[1]; nodes_new_path]
+    if upd_period != 0 && cutoff!= length(route)
+        inAgent.route = [inAgent.route[1]; nodes_new_path ; inAgent.route[(cutoff+1):end]]
+    else
+        inAgent.route = [inAgent.route[1]; nodes_new_path]
+    end
 end
 
 """

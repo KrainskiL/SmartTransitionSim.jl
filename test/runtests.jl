@@ -6,7 +6,8 @@ using Random
 test_map = OpenStreetMapX.get_map_data("reno_east3.osm", use_cache = false)
 Rect1 = [Rect((39.50,-119.70),(39.55,-119.74))]
 Rect2 = [Rect((39.50,-119.80),(39.55,-119.76))]
-AgentsSet, AgentsTime, AgentsDists = generate_agents(test_map,10,Rect1,Rect2, 0.5)
+KDict = Dict{Tuple{Int,Int},Array{Vector{Int}}}()
+AgentsSet = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0, KDict)
 
 #generate_agents.jl
 @testset "agents" begin
@@ -19,7 +20,6 @@ Random.seed!(0);
 @test typeof(pick_random_node(test_map, Rect1, true)) == Array{Int64,1}
 
 @test all([in(x, keys(test_map.nodes)) for x in getfield.(AgentsSet,:start_node)])
-@test AgentsTime[5] == OpenStreetMapX.fastest_route(test_map, AgentsSet[5].start_node, AgentsSet[5].end_node)[3]
 @test sum(getfield.(AgentsSet,:smart)) == 5
 
 end
@@ -29,28 +29,27 @@ end
 
 constantNode = AgentsSet[1].route[1]
 speeds = OpenStreetMapX.get_velocities(test_map)
-k_shortest_path_rerouting!(test_map, AgentsSet[1], speeds, 3, 1.0)
+k_shortest_path_rerouting!(test_map, KDict, AgentsSet[1], speeds, 3, 1.0, 100)
 @test AgentsSet[1].route[1] == constantNode
 
 k_routes = yen_a_star(test_map.g,test_map.v[AgentsSet[1].route[1]],test_map.v[AgentsSet[1].route[end]],speeds,3)
-
 @test length(k_routes.dists) == 3
 end
 
 #simulations.jl
 @testset "simulations" begin
 
-newAgents = generate_agents(test_map,10,Rect1,Rect2, 0.5)[1]
-output = simulation_run("base",test_map, newAgents)
+newAgents = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0, KDict)
+output = simulation_run("base",test_map, newAgents, KDict)
 @test length(output) == 3
 @test typeof(output) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
 
-ITSOutput = simulation_run("smart",test_map, newAgents, 50, 1.0, 3)
+ITSOutput = simulation_run("smart",test_map, newAgents, KDict, 100, 1.0, 3)
 
 @test length(ITSOutput) == 3
 @test typeof(ITSOutput) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
 
-output = simulation_run("base",test_map, AgentsSet)
+output = simulation_run("base",test_map, AgentsSet, KDict)
 stats = gather_statistics(getfield.(AgentsSet,:smart),
                     output.TravelTimes,
                     ITSOutput.TravelTimes)
