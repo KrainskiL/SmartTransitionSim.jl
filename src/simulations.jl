@@ -10,23 +10,23 @@
     * `smart` : simulation with smart agents enabled
 * `OSMmap` : OpenStreetMapX MapData object with road network data
 * `inAgents` : set of agents created with generate_agents function
+* `density_factor` : road length reserved for one vehicle
 * `k_routes_dict` : dictionary with multiple shortest paths (values) between vertices (keys)
 * `U` : period of weights updates
 * `T` : distribution parameter in k-shortest path rerouting
 * `k` : number of fastest routes generated in rerouting function
-* `density_factor` : road length reserved for one vehicle
 * `debug` : debug messages switch
 * `track_avg_speeds` : return average speeds on edges if true
 """
 function simulation_run(mode::String,
                         OSMmap::MapData,
                         inAgents::Vector{Agent},
+                        density_factor::Float64 = 5.0,
                         k_routes_dict::Dict{Tuple{Int,Int},Array{Vector{Int}}}=
                         Dict{Tuple{Int,Int},Array{Vector{Int}}}(),
                         U::Int64 = 100,
                         T::Float64 = 1.0,
                         k::Int64 = 3,
-                        density_factor::Float64 = 5.0,
                         debug::Bool = false;
                         track_avg_speeds::Bool = false)
     mode = lowercase(mode) #Mode check
@@ -121,7 +121,46 @@ function gather_statistics(smart_ind::BitArray{1},
     statistics_tuple = (
         overall_time = round(overall_time, digits=3),
         smart_time = round(smart_time, digits=3),
-        other_time = round(other_time, digits=3)
+        other_time = round(other_time, digits=3),
+        avg_base = round(StatsBase.mean(times_base), digits=2),
+        avg_overall_V2I = round(StatsBase.mean(times_smart), digits=2),
+        avg_smart_V2I = round(StatsBase.mean(times_smart[smart_ind]), digits=2),
+        avg_regular_V2I = round(StatsBase.mean(times_smart[.!smart_ind]), digits=2)
                         )
     return statistics_tuple
+end
+
+"""
+`run_parameter_analysis` run base and V2I simulation scenario to compare agents performance, returns comparison statistics
+
+**Input parameters**
+* `GridElement` : element from parameters grid to be used in simulation
+* `ParamGrid` : array with parameters values
+* `Start` : vector of areas from which agents randomly pick starting point
+* `End` : vector of areas from which agents randomly pick ending point
+* `density_factor` : road length reserved for one vehicle
+* `K_Paths_Dict` : dictionary with multiple shortest paths (values) between vertices (keys)
+* `mapdata` : OpenStreetMapX MapData object with road network data
+"""
+function run_parameter_analysis(GridElement::Int64,
+                                ParamGrid::Vector{Tuple{Int64,Float64,Int64,Int64,Float64,Int64}},
+                                Start::Vector{Rect}, End::Vector{Rect}, density_factor::Float64,
+                                K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
+                                mapdata::OpenStreetMapX.MapData)
+  startTime = time()
+  p = ParamGrid[GridElement]
+  #Generating agents
+  Agents = generate_agents(mapdata, p[3], Start, End, p[2], p[6], p[5], K_Paths_Dict)
+  #Running base simulation - no V2I system
+  BaseOutput = simulation_run("base", mapdata, Agents, density_factor)
+  #Running simulation with smart agents - V2I system enabled
+  SmartOutput = simulation_run("smart", mapdata, Agents, density_factor,
+                              K_Paths_Dict, p[4], p[5], p[6])
+  step_stat = gather_statistics(getfield.(Agents,:smart),
+                                      BaseOutput.TravelTimes,
+                                      SmartOutput.TravelTimes)
+  runtime = time()-startTime
+  print("$(GridElement),$(p[1]),$(p[2]),$(p[3]),$(p[4]),$(p[5]),$(p[6]),")
+  print("$(round(runtime,digits = 2)),$(step_stat[1]),$(step_stat[2]),$(step_stat[3]),")
+  println("$(step_stat[4]),$(step_stat[5]),$(step_stat[6]),$(step_stat[7])")
 end

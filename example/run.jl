@@ -1,4 +1,3 @@
-using OpenStreetMapX
 using SmartTransitionSim
 
 #Creating MapData object
