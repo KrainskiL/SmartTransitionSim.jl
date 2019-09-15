@@ -164,3 +164,29 @@ function run_parameter_analysis(GridElement::Int64,
   print("$(round(runtime,digits = 2)),$(step_stat[1]),$(step_stat[2]),$(step_stat[3]),")
   println("$(step_stat[4]),$(step_stat[5]),$(step_stat[6]),$(step_stat[7])")
 end
+
+function run_parameter_analysis(GridElement::Int64,
+                                ParamGrid::Vector{Tuple{Int64,Float64,Int64,Int64,Float64,Int64}},
+                                AgentsVec::Vector{Agent}, density_factor::Float64,
+                                K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
+                                mapdata::OpenStreetMapX.MapData)
+  startTime = time()
+  p = ParamGrid[GridElement]
+  #Sample N agents from supplied vector and adjust smart agents number
+  Agents = deepcopy(sample(AgentsVec, p[3], replace = false))
+  N_int= Int(ceil(p[3]*p[2]))
+  smart_ind = [trues(N_int); falses(p[3]-N_int)]
+  for i in 1:p[3] Agents[i].smart = smart_ind[i] end
+  #Running base simulation - no V2I system
+  BaseOutput = simulation_run("base", mapdata, Agents, density_factor)
+  #Running simulation with smart agents - V2I system enabled
+  SmartOutput = simulation_run("smart", mapdata, Agents, density_factor,
+                              K_Paths_Dict, p[4], p[5], p[6])
+  step_stat = gather_statistics(getfield.(Agents,:smart),
+                                      BaseOutput.TravelTimes,
+                                      SmartOutput.TravelTimes)
+  runtime = time()-startTime
+  print("$(GridElement),$(p[1]),$(p[2]),$(p[3]),$(p[4]),$(p[5]),$(p[6]),")
+  print("$(round(runtime,digits = 2)),$(step_stat[1]),$(step_stat[2]),$(step_stat[3]),")
+  println("$(step_stat[4]),$(step_stat[5]),$(step_stat[6]),$(step_stat[7])")
+end
