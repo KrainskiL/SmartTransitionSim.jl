@@ -24,8 +24,8 @@ k = 3
 #Generating agents
 Agents = generate_agents(map_data, agents_num, Start, End, smart_perc, k, T , KDict)
 #Running base simulation - no V2I system
-BaseOutput = simulation_run("base", map_data, Agents)
-SmartOutput = simulation_run("smart", map_data, Agents, KDict, update_period, T, k, density_factor)
+BaseOutput = simulation_run(:base, map_data, Agents)
+SmartOutput = simulation_run(:smart, map_data, Agents, KDict, update_period, T, k, density_factor)
 
 simulation_statistics = gather_statistics(getfield.(Agents,:smart),
                                     BaseOutput.TravelTimes,

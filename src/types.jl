@@ -27,10 +27,10 @@ end
 """
 mutable struct Agent
     smart::Bool
-    start_node::Int64
-    end_node::Int64
-    route::Union{Array{Int64,1}, Nothing}
+    start_node::Int
+    end_node::Int
+    route::Union{Array{Int,1}, Nothing}
     travel_time::Float64
-    edge::Vector{Int64}
+    edge::Tuple{Int,Int}
     active::Bool
 end
