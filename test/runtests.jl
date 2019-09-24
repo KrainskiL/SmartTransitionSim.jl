@@ -40,16 +40,16 @@ end
 @testset "simulations" begin
 
 newAgents = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0, KDict)
-output = simulation_run("base",test_map, newAgents)
+output = simulation_run(:base,test_map, newAgents)
 @test length(output) == 3
 @test typeof(output) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
 
-ITSOutput = simulation_run("smart",test_map, newAgents, 5.0, KDict, 100, 1.0, 3)
+ITSOutput = simulation_run(:smart,test_map, newAgents, 5.0, KDict, 100, 1.0, 3)
 
 @test length(ITSOutput) == 3
 @test typeof(ITSOutput) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
 
-output = simulation_run("base",test_map, AgentsSet)
+output = simulation_run(:base,test_map, AgentsSet)
 stats = gather_statistics(getfield.(AgentsSet,:smart),
                     output.TravelTimes,
                     ITSOutput.TravelTimes)

@@ -26,7 +26,7 @@ end
 """
 function get_max_densities(OSMmap::MapData,
                            density_factor::Float64 = 5.0)
-    roads_lanes = Dict{Int64,Int64}()
+    roads_lanes = Dict{Int,Int}()
     for r in OSMmap.roadways
         OpenStreetMapX.haslanes(r) ? lanes = OpenStreetMapX.getlanes(r) : lanes = 1
         roads_lanes[r.id] = lanes
@@ -64,12 +64,12 @@ end
 * `V_max` : matrix with maximal speeds on edges
 * `V_min` : minimal speed on road
 """
-function update_weights!(speed_matrix::SparseMatrixCSC{Float64,Int64},
-                        dens::Dict{Vector{Int64},Int64},
-                        max_densities::SparseMatrixCSC{Float64,Int64},
-                        V_max::SparseMatrixCSC{Float64,Int64},
+function update_weights!(speed_matrix::SparseMatrixCSC{Float64,Int},
+                        dens::Dict{Tuple{Int,Int},Int},
+                        max_densities::SparseMatrixCSC{Float64,Int},
+                        V_max::SparseMatrixCSC{Float64,Int},
                         V_min::Float64 = 1.0)
-    for (k,v) in dens
+    for k in keys(dens)
         v1, v2 = k
         speed_matrix[v1,v2]  = (V_max[v1,v2] - V_min)* max((1 - dens[k]/max_densities[v1,v2]), 0.0) + V_min
     end
@@ -90,21 +90,24 @@ end
 """
 function update_weights_and_events!(inAgents::Vector{Agent},
                                     events::Vector{Float64},
-                                    speed_matrix::SparseMatrixCSC{Float64,Int64},
-                                    edges::Vector{Vector{Int64}},
-                                    dens::Dict{Vector{Int64},Int64},
-                                    max_densities::SparseMatrixCSC{Float64,Int64},
-                                    V_max::SparseMatrixCSC{Float64,Int64},
+                                    speed_matrix::SparseMatrixCSC{Float64,Int},
+                                    edges::Vector{Tuple{Int,Int}},
+                                    dens::Dict{Tuple{Int,Int},Int},
+                                    max_densities::SparseMatrixCSC{Float64,Int},
+                                    V_max::SparseMatrixCSC{Float64,Int},
                                     V_min::Float64 = 1.0)
     for edge in edges
         v1, v2 = edge
         old_speed = speed_matrix[v1,v2]
         #Update speed matrix
-        speed_matrix[v1,v2]  = (V_max[v1,v2] - V_min)* max((1 - dens[edge]/max_densities[v1,v2]), 0.0) + V_min
+        new_speed = (V_max[v1,v2] - V_min)* max((1 - dens[edge]/max_densities[v1,v2]), 0.0) + V_min
+        speed_matrix[v1,v2]  = new_speed
         #Adjust event time for agents in modified edges
-        speed_factor = old_speed/speed_matrix[v1,v2]
+        speed_factor = old_speed/new_speed
         for (i,a) in enumerate(inAgents)
-            if a.active && a.edge == edge events[i] *= speed_factor end
+            if a.active && a.edge == edge
+                @inbounds events[i] = events[i]*speed_factor
+            end
         end
     end
 end
@@ -150,7 +153,7 @@ end
 """
 function update_event_agent!(inAgent::Agent,
                             curr_time::Float64,
-                            densities::Dict,
+                            densities::Dict{Tuple{Int,Int}, Int},
                             vertices_map::Dict{Int,Int})
     #Decrease density on previous edge
     p_edge = inAgent.edge
@@ -165,7 +168,7 @@ function update_event_agent!(inAgent::Agent,
     else
         #Update agent route and current edge
         inAgent.route = inAgent.route[2:end]
-        c_edge = [inAgent.edge[2], vertices_map[inAgent.route[2]]]
+        c_edge = (inAgent.edge[2], vertices_map[inAgent.route[2]])
         inAgent.edge = c_edge
         #Add density on new edge
         haskey(densities, c_edge) ? densities[c_edge] += 1 : densities[c_edge] = 1

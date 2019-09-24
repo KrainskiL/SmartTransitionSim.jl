@@ -18,9 +18,9 @@ function k_shortest_path_rerouting!(OSMmap::MapData,
                                     k_routes_dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
                                     inAgent::Agent,
                                     speeds::AbstractMatrix,
-                                    k::Int64,
+                                    k::Int,
                                     T::Float64,
-                                    upd_period::Int64 = 0)
+                                    upd_period::Int = 0)
     #Assigning start and end vertices for rerouting
     vx1 = OSMmap.v[inAgent.route[2]]
     vx2 = OSMmap.v[inAgent.end_node]
@@ -84,10 +84,10 @@ end
 * `K` : number of routes to be calculated
 """
 function yen_a_star(g::AbstractGraph,
-    source::Int64,
-    target::Int64,
+    source::Int,
+    target::Int,
     distmx::AbstractMatrix=weights(g),
-    K::Int64=1)
+    K::Int=1)
 
     dj = OpenStreetMapX.a_star_algorithm(g, source, target, distmx)
     path = dj[1]

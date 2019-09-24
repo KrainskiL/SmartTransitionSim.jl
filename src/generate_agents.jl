@@ -77,12 +77,12 @@ function generate_agents(OSMmap::OpenStreetMapX.MapData,
             counter == 100 && error("Route from starting to ending point can't be calculated.")
         end
         #First edge in vertices notation
-        firstEdge = [OSMmap.v[init_route[1]], OSMmap.v[init_route[2]]]
+        firstEdge = (OSMmap.v[init_route[1]], OSMmap.v[init_route[2]])
         NewAgent = Agent(smart_ind[i], start_node, end_node, init_route, 0.0, firstEdge, true)
         push!(AgentsArr, NewAgent)
     end
     #Get averages speeds from base scenario - simulating short term memory
-    AverageSpeeds = simulation_run("base", OSMmap,AgentsArr; track_avg_speeds=true).AvgSpeeds
+    AverageSpeeds = simulation_run(:base, OSMmap,AgentsArr; track_avg_speeds=true).AvgSpeeds
     #Recalculate agents paths with k-shortest path algorithm and avg speeds
     for a in AgentsArr k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, AverageSpeeds, k, T) end
     return AgentsArr

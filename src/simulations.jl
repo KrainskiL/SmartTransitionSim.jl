@@ -1,13 +1,22 @@
 ###################################
 ## Simulation models ##
 ###################################
+
+function count_active_agents(agents::Vector{Agent})
+    r = 0
+    @simd for i = eachindex(agents)
+        @inbounds r += agents[i].active
+    end
+    r
+end
+
 """
 `simulation_run` run traffic simulation in two modes.
 
 **Input parameters**
 * `mode` : simulation model switch
-    * `base` : simulation with regular agents only
-    * `smart` : simulation with smart agents enabled
+    * `:base` : simulation with regular agents only
+    * `:smart` : simulation with smart agents enabled
 * `OSMmap` : OpenStreetMapX MapData object with road network data
 * `inAgents` : set of agents created with generate_agents function
 * `density_factor` : road length reserved for one vehicle
@@ -18,19 +27,18 @@
 * `debug` : debug messages switch
 * `track_avg_speeds` : return average speeds on edges if true
 """
-function simulation_run(mode::String,
+function simulation_run(mode::Symbol,
                         OSMmap::MapData,
                         inAgents::Vector{Agent},
                         density_factor::Float64 = 5.0,
                         k_routes_dict::Dict{Tuple{Int,Int},Array{Vector{Int}}}=
                         Dict{Tuple{Int,Int},Array{Vector{Int}}}(),
-                        U::Int64 = 100,
+                        U::Int = 100,
                         T::Float64 = 1.0,
-                        k::Int64 = 3,
+                        k::Int = 3,
                         debug::Bool = false;
                         track_avg_speeds::Bool = false)
-    mode = lowercase(mode) #Mode check
-    if !in(mode, ["base","smart"]) error("Wrong mode specified.") end
+    if !in(mode, [:base,:smart]) error("Wrong mode specified.") end
     Agents = deepcopy(inAgents) #Creating working copy of agents
     max_densities, max_speeds = traffic_constants(OSMmap, density_factor) #Traffic characteristic constants
     densities, speeds = init_traffic_variables(OSMmap, Agents) #Traffic characteristic variables
@@ -51,7 +59,7 @@ function simulation_run(mode::String,
         #Calculate next event time
         event_time, ID = findmin(times_to_event)
         ### Smart cars simulation chunk ###
-        if mode != "base"
+        if mode == :smart
             #Calculate time to next weights update
             next_update = (simtime ÷ U + 1) * U - simtime
             #Check if weight updates occur before event_time
@@ -88,7 +96,7 @@ function simulation_run(mode::String,
             avg_speeds = ((tick-1)/tick)*avg_speeds+(1/tick)*speeds
         end
         if vAgent.active times_to_event[ID] = next_edge(vAgent, speeds, OSMmap.w) end
-        active = sum(getfield.(Agents,:active))
+        active = count_active_agents(Agents)
     end
     times = getfield.(Agents,:travel_time)
     if track_avg_speeds
@@ -142,8 +150,8 @@ end
 * `K_Paths_Dict` : dictionary with multiple shortest paths (values) between vertices (keys)
 * `mapdata` : OpenStreetMapX MapData object with road network data
 """
-function run_parameter_analysis(GridElement::Int64,
-                                ParamGrid::Vector{Tuple{Int64,Float64,Int64,Int64,Float64,Int64}},
+function run_parameter_analysis(GridElement::Int,
+                                ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int}},
                                 Start::Vector{Rect}, End::Vector{Rect}, density_factor::Float64,
                                 K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
                                 mapdata::OpenStreetMapX.MapData)
@@ -152,9 +160,9 @@ function run_parameter_analysis(GridElement::Int64,
   #Generating agents
   Agents = generate_agents(mapdata, p[3], Start, End, p[2], p[6], p[5], K_Paths_Dict)
   #Running base simulation - no V2I system
-  BaseOutput = simulation_run("base", mapdata, Agents, density_factor)
+  BaseOutput = simulation_run(:base, mapdata, Agents, density_factor)
   #Running simulation with smart agents - V2I system enabled
-  SmartOutput = simulation_run("smart", mapdata, Agents, density_factor,
+  SmartOutput = simulation_run(:smart, mapdata, Agents, density_factor,
                               K_Paths_Dict, p[4], p[5], p[6])
   step_stat = gather_statistics(getfield.(Agents,:smart),
                                       BaseOutput.TravelTimes,
@@ -165,8 +173,8 @@ function run_parameter_analysis(GridElement::Int64,
   println("$(step_stat[4]),$(step_stat[5]),$(step_stat[6]),$(step_stat[7])")
 end
 
-function run_parameter_analysis(GridElement::Int64,
-                                ParamGrid::Vector{Tuple{Int64,Float64,Int64,Int64,Float64,Int64}},
+function run_parameter_analysis(GridElement::Int,
+                                ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int}},
                                 AgentsVec::Vector{Agent}, density_factor::Float64,
                                 K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
                                 mapdata::OpenStreetMapX.MapData)
@@ -178,9 +186,9 @@ function run_parameter_analysis(GridElement::Int64,
   smart_ind = [trues(N_int); falses(p[3]-N_int)]
   for i in 1:p[3] Agents[i].smart = smart_ind[i] end
   #Running base simulation - no V2I system
-  BaseOutput = simulation_run("base", mapdata, Agents, density_factor)
+  BaseOutput = simulation_run(:base, mapdata, Agents, density_factor)
   #Running simulation with smart agents - V2I system enabled
-  SmartOutput = simulation_run("smart", mapdata, Agents, density_factor,
+  SmartOutput = simulation_run(:smart, mapdata, Agents, density_factor,
                               K_Paths_Dict, p[4], p[5], p[6])
   step_stat = gather_statistics(getfield.(Agents,:smart),
                                       BaseOutput.TravelTimes,
