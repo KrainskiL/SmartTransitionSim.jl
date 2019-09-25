@@ -44,7 +44,7 @@ output = simulation_run(:base,test_map, newAgents)
 @test length(output) == 3
 @test typeof(output) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
 
-ITSOutput = simulation_run(:smart,test_map, newAgents, 5.0, KDict, 100, 1.0, 3)
+ITSOutput = simulation_run(:smart,test_map, newAgents, 5.0, KDict, 100, 1.0, 3, true)
 
 @test length(ITSOutput) == 3
 @test typeof(ITSOutput) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
@@ -57,6 +57,14 @@ stats = gather_statistics(getfield.(AgentsSet,:smart),
 @test length(stats) == 7
 @test typeof(stats) == NamedTuple{(:overall_time, :smart_time, :other_time, :avg_base, :avg_overall_V2I, :avg_smart_V2I, :avg_regular_V2I),
                         Tuple{Float64,Float64,Float64,Float64,Float64,Float64,Float64}}
+
+Params = (reps = 1, α = 0.05, N = 8, U = 150, T = 1.0, k = 3)
+ParametersGridProd = collect(Base.Iterators.product(Params.reps,Params.α, Params.N, Params.U, Params.T, Params.k))
+ParametersGrid = [ParametersGridProd[i] for i in 1:length(ParametersGridProd)]
+
+run_parameter_analysis(1,ParametersGrid,newAgents,5.0,KDict,test_map)
+run_parameter_analysis(1,ParametersGrid,Rect1,Rect2,5.0,KDict,test_map)
+
 end
 
 #traffic_model.jl

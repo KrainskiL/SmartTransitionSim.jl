@@ -43,6 +43,8 @@ function simulation_run(mode::Symbol,
     max_densities, max_speeds = traffic_constants(OSMmap, density_factor) #Traffic characteristic constants
     densities, speeds = init_traffic_variables(OSMmap, Agents) #Traffic characteristic variables
     update_weights!(speeds, densities, max_densities, max_speeds) #Initial speeds update
+    curr_edges = [a.edge for a in Agents] #Initialize edges list
+    #@inbounds curr_edges = Dict([i=>Agents[i].edge for i in 1:length(Agents)])
     if track_avg_speeds
         avg_speeds = deepcopy(speeds)
         tick = 1
@@ -85,9 +87,11 @@ function simulation_run(mode::Symbol,
         times_to_event .-= event_time #Move agents forward to event time
         #Process agent for which event is occuring
         changed_edges = update_event_agent!(vAgent, simtime, densities, OSMmap.v)
+        length(changed_edges) == 1 ? curr_edges[ID] = (0,0) : curr_edges[ID] = changed_edges[2]
+        #length(changed_edges) == 1 ? delete!(curr_edges,ID) : curr_edges[ID] = changed_edges[2]
         if !vAgent.active times_to_event[ID] = Inf end
         #Update speeds and correct events time
-        update_weights_and_events!(Agents, times_to_event,speeds,
+        update_weights_and_events!(Agents, curr_edges, times_to_event,speeds,
             changed_edges, densities, max_densities, max_speeds)
         #Update average speeds every 30 secs
         if track_avg_speeds && simtime > tick*30
@@ -173,6 +177,17 @@ function run_parameter_analysis(GridElement::Int,
   println("$(step_stat[4]),$(step_stat[5]),$(step_stat[6]),$(step_stat[7])")
 end
 
+"""
+`run_parameter_analysis` run base and V2I simulation scenario to compare agents performance, returns comparison statistics
+
+**Input parameters**
+* `GridElement` : element from parameters grid to be used in simulation
+* `ParamGrid` : array with parameters values
+* `AgentsVec` : vector with agents used in simulation
+* `density_factor` : road length reserved for one vehicle
+* `K_Paths_Dict` : dictionary with multiple shortest paths (values) between vertices (keys)
+* `mapdata` : OpenStreetMapX MapData object with road network data
+"""
 function run_parameter_analysis(GridElement::Int,
                                 ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int}},
                                 AgentsVec::Vector{Agent}, density_factor::Float64,

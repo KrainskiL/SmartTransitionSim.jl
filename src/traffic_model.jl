@@ -80,6 +80,7 @@ end
 
 **Input parameters**
 * `inAgents` : set of agents created with generate_agents function
+* `agents_pos` : vector with agents current position (edges)
 * `events` : vector with events time
 * `speed_matrix` : matrix with average speeds on edges
 * `edges` : one or two edges that took part in an event
@@ -89,6 +90,7 @@ end
 * `V_min` : minimal speed allowed on road
 """
 function update_weights_and_events!(inAgents::Vector{Agent},
+                                    agents_pos::Vector{Tuple{Int,Int}},
                                     events::Vector{Float64},
                                     speed_matrix::SparseMatrixCSC{Float64,Int},
                                     edges::Vector{Tuple{Int,Int}},
@@ -104,10 +106,11 @@ function update_weights_and_events!(inAgents::Vector{Agent},
         speed_matrix[v1,v2]  = new_speed
         #Adjust event time for agents in modified edges
         speed_factor = old_speed/new_speed
-        for (i,a) in enumerate(inAgents)
-            if a.active && a.edge == edge
-                @inbounds events[i] = events[i]*speed_factor
-            end
+        # for i in [k for (k,v) in agents_pos if v == edge]
+        #     @inbounds events[i] = events[i]*speed_factor
+        # end
+        for i in findall(x-> x==edge, agents_pos)
+            @inbounds events[i] = events[i]*speed_factor
         end
     end
 end
