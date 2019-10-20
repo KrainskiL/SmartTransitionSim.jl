@@ -7,7 +7,7 @@ test_map = OpenStreetMapX.get_map_data("reno_east3.osm", use_cache = false)
 Rect1 = [Rect((39.50,-119.70),(39.55,-119.74))]
 Rect2 = [Rect((39.50,-119.80),(39.55,-119.76))]
 KDict = Dict{Tuple{Int,Int},Array{Vector{Int}}}()
-AgentsSet = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0, KDict)
+AgentsSet = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0, 1.0, KDict)
 
 #generate_agents.jl
 @testset "agents" begin
@@ -29,7 +29,7 @@ end
 
 constantNode = AgentsSet[1].route[1]
 speeds = OpenStreetMapX.get_velocities(test_map)
-k_shortest_path_rerouting!(test_map, KDict, AgentsSet[1], speeds, 3, 1.0, 100)
+k_shortest_path_rerouting!(test_map, KDict, AgentsSet[1], speeds, speeds, 3, 1.0, 100)
 @test AgentsSet[1].route[1] == constantNode
 
 k_routes = yen_a_star(test_map.g,test_map.v[AgentsSet[1].route[1]],test_map.v[AgentsSet[1].route[end]],speeds,3)
@@ -39,7 +39,7 @@ end
 #simulations.jl
 @testset "simulations" begin
 
-newAgents = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0, KDict)
+newAgents = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0,1.0, KDict)
 output = simulation_run(:base,test_map, newAgents)
 @test length(output) == 3
 @test typeof(output) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
@@ -58,8 +58,8 @@ stats = gather_statistics(getfield.(AgentsSet,:smart),
 @test typeof(stats) == NamedTuple{(:overall_time, :smart_time, :other_time, :avg_base, :avg_overall_V2I, :avg_smart_V2I, :avg_regular_V2I),
                         Tuple{Float64,Float64,Float64,Float64,Float64,Float64,Float64}}
 
-Params = (reps = 1, α = 0.05, N = 8, U = 150, T = 1.0, k = 3)
-ParametersGridProd = collect(Base.Iterators.product(Params.reps,Params.α, Params.N, Params.U, Params.T, Params.k))
+Params = (reps = 1, α = 0.05, N = 8, U = 150, T = 1.0, k = 3, AvgT = 1.0)
+ParametersGridProd = collect(Base.Iterators.product(Params.reps,Params.α, Params.N, Params.U, Params.T, Params.k, Params.AvgT))
 ParametersGrid = [ParametersGridProd[i] for i in 1:length(ParametersGridProd)]
 
 run_parameter_analysis(1,ParametersGrid,newAgents,5.0,KDict,test_map)
@@ -72,6 +72,8 @@ end
 
 max_dens = get_max_densities(test_map, 5.0)
 max_speeds = OpenStreetMapX.get_velocities(test_map)
+AgentsSet[1].start_time = 0.0
+AgentsSet[1].active = true
 densities, speeds = init_traffic_variables(test_map, AgentsSet)
 #get_max_densities tests
 @test round(sum(max_dens);digits=3) == 206315.887
@@ -87,7 +89,7 @@ max_d, max_s = traffic_constants(test_map, 5.0)
 
 #init_traffic_variables tests
 i_densities, i_speeds = init_traffic_variables(test_map, AgentsSet)
-@test sum(values(i_densities)) == 10
+@test sum(values(i_densities)) == 1
 @test i_speeds == max_speeds
 
 #next_edge tests

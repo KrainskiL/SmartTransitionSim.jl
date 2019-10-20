@@ -50,7 +50,7 @@ end
 function init_traffic_variables(OSMmap::MapData,
                                 Agents::Vector{Agent})
     #Dictionary with initital densities
-    initial_densities = StatsBase.countmap([a.edge for a in Agents])
+    initial_densities = StatsBase.countmap([a.edge for a in Agents if a.start_time == 0.0])
     initial_speeds = OpenStreetMapX.get_velocities(OSMmap)
     return initial_densities, initial_speeds
 end
@@ -61,6 +61,7 @@ end
 **Input parameters**
 * `speed_matrix` : matrix with average speeds on edges
 * `new_densities` : dictionary with edges as keys and new traffic density as value
+* `max_densities` : matrix with maximal densitites on edges
 * `V_max` : matrix with maximal speeds on edges
 * `V_min` : minimal speed on road
 """
@@ -106,9 +107,6 @@ function update_weights_and_events!(inAgents::Vector{Agent},
         speed_matrix[v1,v2]  = new_speed
         #Adjust event time for agents in modified edges
         speed_factor = old_speed/new_speed
-        # for i in [k for (k,v) in agents_pos if v == edge]
-        #     @inbounds events[i] = events[i]*speed_factor
-        # end
         for i in findall(x-> x==edge, agents_pos)
             @inbounds events[i] = events[i]*speed_factor
         end
@@ -126,6 +124,9 @@ end
 function next_edge(Agent::Agent,
                     speeds::AbstractMatrix,
                     lengths::AbstractMatrix)
+    if !Agent.active
+        return Inf
+    end
     e = Agent.edge
     event_time = lengths[e[1],e[2]]/speeds[e[1],e[2]]
     return event_time
@@ -165,7 +166,7 @@ function update_event_agent!(inAgent::Agent,
     if length(inAgent.route) == 2
         #Disable agent and set travelling time
         inAgent.active = false
-        inAgent.travel_time = curr_time
+        inAgent.travel_time = curr_time - inAgent.start_time
         #Return agent's last edge
         return [p_edge]
     else

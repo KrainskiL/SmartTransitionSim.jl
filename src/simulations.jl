@@ -40,11 +40,12 @@ function simulation_run(mode::Symbol,
                         track_avg_speeds::Bool = false)
     if !in(mode, [:base,:smart]) error("Wrong mode specified.") end
     Agents = deepcopy(inAgents) #Creating working copy of agents
+    Agents[1].start_time = 0.0
+    Agents[1].active = true
     max_densities, max_speeds = traffic_constants(OSMmap, density_factor) #Traffic characteristic constants
     densities, speeds = init_traffic_variables(OSMmap, Agents) #Traffic characteristic variables
     update_weights!(speeds, densities, max_densities, max_speeds) #Initial speeds update
     curr_edges = [a.edge for a in Agents] #Initialize edges list
-    #@inbounds curr_edges = Dict([i=>Agents[i].edge for i in 1:length(Agents)])
     if track_avg_speeds
         avg_speeds = deepcopy(speeds)
         tick = 1
@@ -54,52 +55,59 @@ function simulation_run(mode::Symbol,
     steps = 0
     active = length(Agents)
     #Calculate initial time to nearest junction for all agents
-    times_to_event = next_edge(Agents, speeds, OSMmap.w)
+    times_to_edge = next_edge(Agents, speeds, OSMmap.w)
+    times_to_start = [a.start_time for a in Agents] #Get agents starting times
+    times_to_start[1] = Inf
+    event_update = Inf
     #Loop until all agents are deactivated
-    while active != 0
+    while active != 0 || !all(times_to_start.==Inf)
         steps += 1
-        #Calculate next event time
-        event_time, ID = findmin(times_to_event)
-        ### Smart cars simulation chunk ###
+        #Calculate next event time and update sim clock
+        event_edge, IDe = findmin(times_to_edge)
+        event_start, IDs = findmin(times_to_start)
         if mode == :smart
-            #Calculate time to next weights update
-            next_update = (simtime ÷ U + 1) * U - simtime
-            #Check if weight updates occur before event_time
-            if next_update < event_time
-                if debug
-                    update = Int(simtime ÷ U + 1)
-                    smartAgents = sum([a.smart*a.active for a in Agents])
-                    print("Update: $(update) | Smart agents: $(smartAgents) ")
-                end
-                times_to_event .-= next_update
-                simtime += next_update #Increase simulation time
-                #Process rerouting for smart agents
-                for a in Agents
-                    a.smart && a.active &&
-                    k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, speeds, k, T, U)
-                end
-                debug && println("Finished")
-                continue #Skip to next event
-            end
+            event_update = next_update = (simtime ÷ U + 1) * U - simtime
         end
-        simtime += event_time #Increase total simulation time
-        vAgent = Agents[ID] #Pick agent for which event is occuring
-        times_to_event .-= event_time #Move agents forward to event time
-        #Process agent for which event is occuring
-        changed_edges = update_event_agent!(vAgent, simtime, densities, OSMmap.v)
-        length(changed_edges) == 1 ? curr_edges[ID] = (0,0) : curr_edges[ID] = changed_edges[2]
-        #length(changed_edges) == 1 ? delete!(curr_edges,ID) : curr_edges[ID] = changed_edges[2]
-        if !vAgent.active times_to_event[ID] = Inf end
-        #Update speeds and correct events time
-        update_weights_and_events!(Agents, curr_edges, times_to_event,speeds,
-            changed_edges, densities, max_densities, max_speeds)
+        min_event, event_type = findmin([event_edge, #1
+                                        event_start, #2
+                                        event_update]) #3
+        simtime += min_event #Increase total simulation time
+        times_to_edge .-= min_event #Move agents forward to event time
+        times_to_start .-= min_event
+        if event_type == 1 #Switching edges
+            vAgent = Agents[IDe] #Pick agent for which event is occuring
+            #Process agent for which event is occuring
+            changed_edges = update_event_agent!(vAgent, simtime, densities, OSMmap.v)
+            length(changed_edges) == 1 ? curr_edges[IDe] = (0,0) : curr_edges[IDe] = changed_edges[2]
+            #Update speeds and correct events time
+            update_weights_and_events!(Agents, curr_edges, times_to_edge, speeds,
+                changed_edges, densities, max_densities, max_speeds)
+            vAgent.active ? times_to_edge[IDe] = next_edge(vAgent, speeds, OSMmap.w) : times_to_edge[IDe] = Inf
+        elseif event_type == 2 #New agent joins traffic
+            Agents[IDs].active = true
+            times_to_start[IDs] = Inf
+            times_to_edge[IDs] = next_edge(Agents[IDs], speeds, OSMmap.w)
+            c_edge = Agents[IDs].edge
+            haskey(densities, c_edge) ? densities[c_edge] += 1 : densities[c_edge] = 1
+        elseif event_type == 3 #Velocities update
+            if debug
+                update = Int(simtime ÷ U)
+                smartAgents = sum([a.smart*a.active for a in Agents])
+                print("Update: $(update) | Smart agents: $(smartAgents) ")
+            end
+            #Process rerouting for smart agents
+            for a in Agents
+                a.smart && a.active &&
+                k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, speeds, max_speeds, k, T, U)
+            end
+            debug && println("Finished")
+        end
         #Update average speeds every 30 secs
         if track_avg_speeds && simtime > tick*30
             #Iterative mean
             tick +=1
             avg_speeds = ((tick-1)/tick)*avg_speeds+(1/tick)*speeds
         end
-        if vAgent.active times_to_event[ID] = next_edge(vAgent, speeds, OSMmap.w) end
         active = count_active_agents(Agents)
     end
     times = getfield.(Agents,:travel_time)
@@ -155,14 +163,14 @@ end
 * `mapdata` : OpenStreetMapX MapData object with road network data
 """
 function run_parameter_analysis(GridElement::Int,
-                                ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int}},
+                                ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int,Float64}},
                                 Start::Vector{Rect}, End::Vector{Rect}, density_factor::Float64,
                                 K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
                                 mapdata::OpenStreetMapX.MapData)
   startTime = time()
   p = ParamGrid[GridElement]
   #Generating agents
-  Agents = generate_agents(mapdata, p[3], Start, End, p[2], p[6], p[5], K_Paths_Dict)
+  Agents = generate_agents(mapdata, p[3], Start, End, p[2], p[6], p[5], p[7], K_Paths_Dict)
   #Running base simulation - no V2I system
   BaseOutput = simulation_run(:base, mapdata, Agents, density_factor)
   #Running simulation with smart agents - V2I system enabled
@@ -172,7 +180,7 @@ function run_parameter_analysis(GridElement::Int,
                                       BaseOutput.TravelTimes,
                                       SmartOutput.TravelTimes)
   runtime = time()-startTime
-  print("$(GridElement),$(p[1]),$(p[2]),$(p[3]),$(p[4]),$(p[5]),$(p[6]),")
+  print("$(GridElement),$(p[1]),$(p[2]),$(p[3]),$(p[4]),$(p[5]),$(p[6]),$(p[7]),")
   print("$(round(runtime,digits = 2)),$(step_stat[1]),$(step_stat[2]),$(step_stat[3]),")
   println("$(step_stat[4]),$(step_stat[5]),$(step_stat[6]),$(step_stat[7])")
 end
@@ -189,7 +197,7 @@ end
 * `mapdata` : OpenStreetMapX MapData object with road network data
 """
 function run_parameter_analysis(GridElement::Int,
-                                ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int}},
+                                ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int,Float64}},
                                 AgentsVec::Vector{Agent}, density_factor::Float64,
                                 K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
                                 mapdata::OpenStreetMapX.MapData)
@@ -209,7 +217,7 @@ function run_parameter_analysis(GridElement::Int,
                                       BaseOutput.TravelTimes,
                                       SmartOutput.TravelTimes)
   runtime = time()-startTime
-  print("$(GridElement),$(p[1]),$(p[2]),$(p[3]),$(p[4]),$(p[5]),$(p[6]),")
+  print("$(GridElement),$(p[1]),$(p[2]),$(p[3]),$(p[4]),$(p[5]),$(p[6]),$(p[7]),")
   print("$(round(runtime,digits = 2)),$(step_stat[1]),$(step_stat[2]),$(step_stat[3]),")
   println("$(step_stat[4]),$(step_stat[5]),$(step_stat[6]),$(step_stat[7])")
 end

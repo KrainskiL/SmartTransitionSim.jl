@@ -2,7 +2,7 @@ using SmartTransitionSim
 
 #Creating MapData object
 mapfile = "reno_east3.osm"
-datapath = "C:/SmartTransitionSim.jl/example";
+datapath = "./example/";
 RoadSet = 5
 map_data = get_map_data(datapath, mapfile, use_cache=false; road_levels = Set(1:RoadSet));
 
@@ -16,13 +16,14 @@ KDict = Dict{Tuple{Int,Int},Array{Vector{Int}}}()
 #Declaring simulation input parameters
 density_factor = 5.0
 smart_perc = 0.5
-agents_num = 1000
+agents_num = 100
 update_period = 150
 T = 0.1
 k = 3
+AvgDelay = 1.0
 
 #Generating agents
-Agents = generate_agents(map_data, agents_num, Start, End, smart_perc, k, T , KDict)
+Agents = generate_agents(map_data, agents_num, Start, End, smart_perc, k, T , AvgDelay, KDict)
 #Running base simulation - no V2I system
 BaseOutput = simulation_run(:base, map_data, Agents)
 SmartOutput = simulation_run(:smart, map_data, Agents, KDict, update_period, T, k, density_factor)
