@@ -98,7 +98,7 @@ function generate_agents(OSMmap::OpenStreetMapX.MapData,
     #Recalculate agents paths with k-shortest path algorithm and avg speeds
     max_speeds = OpenStreetMapX.get_velocities(OSMmap)
     for a in AgentsArr
-        k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, AverageSpeeds,max_speeds, k, T, seed)
+        k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, AverageSpeeds,max_speeds, k, T, 0, seed)
     end
     return AgentsArr
 end
