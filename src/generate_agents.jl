@@ -11,10 +11,12 @@ Nodes are randomly chosen from set of provided areas.
 * `NodesSet` : returning object switch
     * `false` return random node from given area
     * `true` return all nodes in given area for further processing
+* `seed` : set seed for rand function
 """
 function pick_random_node(OSMmap::OpenStreetMapX.MapData,
                           rects::Vector{Rect},
-                          NodesSet::Bool = false)
+                          NodesSet::Bool = false,
+                          seed::Int = -1)
     nodes_in_rects = Vector{Int}()
     for rect in rects
         p1 = ENU(LLA(rect.p1[1], rect.p1[2]), OSMmap.bounds)
@@ -30,6 +32,7 @@ function pick_random_node(OSMmap::OpenStreetMapX.MapData,
     end
     unique_nodes = unique!(nodes_in_rects)
     NodesSet && return unique_nodes
+    if seed != -1 Random.seed!(seed) end
     return rand(unique_nodes)
 end
 
@@ -47,17 +50,19 @@ for initial routes travelled with maximal speed
 * `T` : control variable for k-path algorithm probability distribution
 * `AvgStartTime` : average agents start time in minutes
 * `k_routes_dict` : dictionary with multiple shortest paths (values) between vertices (keys)
+* `seed` : set seed for random function
 """
 function generate_agents(OSMmap::OpenStreetMapX.MapData,
                         N::Int,
                         StartArea::Vector{Rect},
                         EndArea::Vector{Rect},
                         α::Float64,
-                        k::Int64 = 3,
+                        k::Int = 3,
                         T::Float64 = 1.0,
                         AvgStartTime::Float64 = 0.0,
                         k_routes_dict::Dict{Tuple{Int,Int},Array{Vector{Int}}}=
-                        Dict{Tuple{Int,Int},Array{Vector{Int}}}())
+                        Dict{Tuple{Int,Int},Array{Vector{Int}}}(),
+                        seed::Int = -1)
     #Initialize empty working variables
     AgentsArr = Vector{Agent}()
     #Indicate smart agents
@@ -71,6 +76,7 @@ function generate_agents(OSMmap::OpenStreetMapX.MapData,
         dist = Inf
         start_node = end_node = counter =  0
         init_route = Array{Int64,1}()
+        if seed != -1 Random.seed!(seed+i) end
         while dist == Inf
             start_node = rand(start_set)
             end_node = rand(end_set)
@@ -80,6 +86,7 @@ function generate_agents(OSMmap::OpenStreetMapX.MapData,
         end
         #First edge in vertices notation
         firstEdge = (OSMmap.v[init_route[1]], OSMmap.v[init_route[2]])
+        if seed != -1 Random.seed!(seed+i) end
         sTime = rand()*AvgStartTime*60*2
         NewAgent = Agent(smart_ind[i], start_node, end_node,
                         init_route, sTime, 0.0, firstEdge,
@@ -91,7 +98,7 @@ function generate_agents(OSMmap::OpenStreetMapX.MapData,
     #Recalculate agents paths with k-shortest path algorithm and avg speeds
     max_speeds = OpenStreetMapX.get_velocities(OSMmap)
     for a in AgentsArr
-        k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, AverageSpeeds,max_speeds, k, T)
+        k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, AverageSpeeds,max_speeds, k, T, seed)
     end
     return AgentsArr
 end

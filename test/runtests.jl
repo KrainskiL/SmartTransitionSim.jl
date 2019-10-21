@@ -15,7 +15,7 @@ AgentsSet = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0, 1.0, KDict)
 Random.seed!(0);
 @test rand(Int) == -4635026124992869592
 
-@test in(pick_random_node(test_map, Rect1, false), keys(test_map.nodes))
+@test in(pick_random_node(test_map, Rect1, false, 1), keys(test_map.nodes))
 @test in(pick_random_node(test_map, [Rect1[1], Rect2[1]], false), keys(test_map.nodes))
 @test typeof(pick_random_node(test_map, Rect1, true)) == Array{Int64,1}
 
@@ -29,7 +29,7 @@ end
 
 constantNode = AgentsSet[1].route[1]
 speeds = OpenStreetMapX.get_velocities(test_map)
-k_shortest_path_rerouting!(test_map, KDict, AgentsSet[1], speeds, speeds, 3, 1.0, 100)
+k_shortest_path_rerouting!(test_map, KDict, AgentsSet[1], speeds, speeds, 3, 1.0, 100, 1)
 @test AgentsSet[1].route[1] == constantNode
 
 k_routes = yen_a_star(test_map.g,test_map.v[AgentsSet[1].route[1]],test_map.v[AgentsSet[1].route[end]],speeds,3)
@@ -39,12 +39,12 @@ end
 #simulations.jl
 @testset "simulations" begin
 
-newAgents = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0,1.0, KDict)
+newAgents = generate_agents(test_map,10,Rect1,Rect2, 0.5, 3, 1.0,1.0, KDict, 2)
 output = simulation_run(:base,test_map, newAgents)
 @test length(output) == 3
 @test typeof(output) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
 
-ITSOutput = simulation_run(:smart,test_map, newAgents, 5.0, KDict, 100, 1.0, 3, true)
+ITSOutput = simulation_run(:smart,test_map, newAgents, 5.0, KDict, 100, 1.0, 3, true, 3)
 
 @test length(ITSOutput) == 3
 @test typeof(ITSOutput) == NamedTuple{(:Steps, :Simtime, :TravelTimes),Tuple{Int64,Float64,Array{Float64,1}}}
@@ -62,8 +62,8 @@ Params = (reps = 1, α = 0.05, N = 8, U = 150, T = 1.0, k = 3, AvgT = 1.0)
 ParametersGridProd = collect(Base.Iterators.product(Params.reps,Params.α, Params.N, Params.U, Params.T, Params.k, Params.AvgT))
 ParametersGrid = [ParametersGridProd[i] for i in 1:length(ParametersGridProd)]
 
-run_parameter_analysis(1,ParametersGrid,newAgents,5.0,KDict,test_map)
-run_parameter_analysis(1,ParametersGrid,Rect1,Rect2,5.0,KDict,test_map)
+run_parameter_analysis(1,ParametersGrid,newAgents,5.0,KDict,test_map,5)
+run_parameter_analysis(1,ParametersGrid,Rect1,Rect2,5.0,KDict,test_map,6)
 
 end
 

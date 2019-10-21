@@ -22,7 +22,8 @@ function k_shortest_path_rerouting!(OSMmap::MapData,
                                     max_speeds::AbstractMatrix,
                                     k::Int,
                                     T::Float64,
-                                    upd_period::Int = 0)
+                                    upd_period::Int = 0,
+                                    seed::Int = -1)
     #Assigning start and end vertices for rerouting
     route = inAgent.route
     #Exit function if route length is 3
@@ -82,6 +83,7 @@ function k_shortest_path_rerouting!(OSMmap::MapData,
         exp_ntime = exp.(-norm_time/T)
         probs = exp_ntime/sum(exp_ntime)
         #Assign new route
+        if seed != -1 Random.seed!(seed) end
         new_path = sample(picked_paths, StatsBase.weights(probs))
         nodes_new_path = map(i-> OSMmap.n[i], new_path)
         if upd_period != 0 && cutoff!= length(route)

@@ -8,6 +8,7 @@ using Base.Iterators
 using LightGraphs
 using DataFrames
 using DataStructures
+using Random
 
 export get_map_data
 
