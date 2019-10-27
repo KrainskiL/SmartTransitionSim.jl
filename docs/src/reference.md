@@ -14,6 +14,7 @@ Agent generation
 Rect
 Agent
 pick_random_node
+get_nodes_set
 generate_agents
 ```
 

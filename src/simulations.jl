@@ -36,8 +36,7 @@ function simulation_run(mode::Symbol,
                         U::Int = 100,
                         T::Float64 = 1.0,
                         k::Int = 3,
-                        debug::Bool = false,
-                        seed::Int = -1;
+                        debug::Bool = false;
                         track_avg_speeds::Bool = false)
     if !in(mode, [:base,:smart]) error("Wrong mode specified.") end
     Agents = deepcopy(inAgents) #Creating working copy of agents
@@ -99,7 +98,7 @@ function simulation_run(mode::Symbol,
             #Process rerouting for smart agents
             for a in Agents
                 a.smart && a.active &&
-                k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, speeds, max_speeds, k, T, U, seed)
+                k_shortest_path_rerouting!(OSMmap, k_routes_dict, a, speeds, max_speeds, k, T, U)
             end
             debug && println("Finished")
         end
@@ -167,17 +166,16 @@ function run_parameter_analysis(GridElement::Int,
                                 ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int,Float64}},
                                 Start::Vector{Rect}, End::Vector{Rect}, density_factor::Float64,
                                 K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
-                                mapdata::OpenStreetMapX.MapData,
-                                seed::Int = -1)
+                                mapdata::OpenStreetMapX.MapData)
   startTime = time()
   p = ParamGrid[GridElement]
   #Generating agents
-  Agents = generate_agents(mapdata, p[3], Start, End, p[2], p[6], p[5], p[7], K_Paths_Dict, seed)
+  Agents = generate_agents(mapdata, p[3], Start, End, p[2], p[6], p[5], p[7], K_Paths_Dict)
   #Running base simulation - no V2I system
   BaseOutput = simulation_run(:base, mapdata, Agents, density_factor)
   #Running simulation with smart agents - V2I system enabled
   SmartOutput = simulation_run(:smart, mapdata, Agents, density_factor,
-                              K_Paths_Dict, p[4], p[5], p[6], false, seed)
+                              K_Paths_Dict, p[4], p[5], p[6], false)
   step_stat = gather_statistics(getfield.(Agents,:smart),
                                       BaseOutput.TravelTimes,
                                       SmartOutput.TravelTimes)
@@ -202,12 +200,10 @@ function run_parameter_analysis(GridElement::Int,
                                 ParamGrid::Vector{Tuple{Int,Float64,Int,Int,Float64,Int,Float64}},
                                 AgentsVec::Vector{Agent}, density_factor::Float64,
                                 K_Paths_Dict::Dict{Tuple{Int,Int},Array{Vector{Int}}},
-                                mapdata::OpenStreetMapX.MapData,
-                                seed::Int = -1)
+                                mapdata::OpenStreetMapX.MapData)
   startTime = time()
   p = ParamGrid[GridElement]
   #Sample N agents from supplied vector and adjust smart agents number
-  if seed != -1 Random.seed!(seed+GridElement) end
   Agents = deepcopy(sample(AgentsVec, p[3], replace = false))
   N_int= Int(ceil(p[3]*p[2]))
   smart_ind = [trues(N_int); falses(p[3]-N_int)]
@@ -216,7 +212,7 @@ function run_parameter_analysis(GridElement::Int,
   BaseOutput = simulation_run(:base, mapdata, Agents, density_factor)
   #Running simulation with smart agents - V2I system enabled
   SmartOutput = simulation_run(:smart, mapdata, Agents, density_factor,
-                              K_Paths_Dict, p[4], p[5], p[6], false, seed)
+                              K_Paths_Dict, p[4], p[5], p[6], false)
   step_stat = gather_statistics(getfield.(Agents,:smart),
                                       BaseOutput.TravelTimes,
                                       SmartOutput.TravelTimes)

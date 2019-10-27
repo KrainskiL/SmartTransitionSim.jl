@@ -17,7 +17,7 @@ export Rect, Agent
 
 #functions
 #generate_agents.jl
-export generate_agents, pick_random_node
+export generate_agents, pick_random_node, get_nodes_set
 #rerouting.jl
 export k_shortest_path_rerouting!, yen_a_star
 #simulations.jl
