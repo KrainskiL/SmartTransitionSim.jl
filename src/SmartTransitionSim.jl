@@ -25,6 +25,8 @@ export simulation_run, gather_statistics, run_parameter_analysis
 #traffic_model.jl
 export get_max_densities, traffic_constants, init_traffic_variables, next_edge
 export update_weights!, update_event_agent!, update_agents_position!, update_weights_and_events!
+#utilities
+export print_map_statistics
 
 #files
 include("types.jl")
@@ -32,5 +34,6 @@ include("generate_agents.jl")
 include("rerouting.jl")
 include("simulations.jl")
 include("traffic_model.jl")
+include("utilities.jl")
 
 end

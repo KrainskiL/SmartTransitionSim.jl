@@ -43,3 +43,9 @@ Simulation
 simulation_run
 gather_statistics
 ```
+
+Utilities
+-----------------------
+```@docs
+print_map_statistics
+```

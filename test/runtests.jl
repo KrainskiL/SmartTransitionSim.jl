@@ -105,3 +105,9 @@ update_event_agent!(AgentsSet[1],event[1], i_densities, test_map.v)
 @test length(AgentsSet[1].route) == length(Agent1.route) - 1
 
 end
+
+#utilities.jl
+@testset "utilities" begin
+    #Check if print_map_statistics() is not returning errors
+    @test print_map_statistics("./","reno_east3.osm",5)
+end

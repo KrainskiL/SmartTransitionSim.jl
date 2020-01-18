@@ -1,0 +1,45 @@
+Map name: SanFranciscoFiltered.osm
+Size: 2448219 B
+Map file hash generated with Base.hash function: 23d64ed249bada88
+
+Map statistics generated for map loaded with statement:
+OpenStretMapX.get_map_data('./', 'SanFranciscoFiltered.osm', use_cache=false; road_levels = Set(1:5))
+
+---Map bounds (LLA coordinates)---
+
+MinY = 37.7805
+MaxY = 37.811
+MinX = -122.485
+MaxY = 37.811
+
+---Graph characteristics---
+
+No. of vertices: 1289
+No. of edges: 2176
+
+---Edges characteristics---
+
+Number of edges with given speed limits:
+50.0 km/h: 902 edges
+70.0 km/h: 526 edges
+90.0 km/h: 644 edges
+100.0 km/h: 104 edges
+
+Number of edges with given lanes:
+1 lane: 583 edges
+2 lanes: 585 edges
+3 lanes: 576 edges
+4 lanes: 357 edges
+5 lanes: 62 edges
+6 lanes: 11 edges
+8 lanes: 2 edges
+
+---Edges length distribution---
+
+Summary Stats (in meters):
+Mean:           104.231957
+Minimum:        1.577702
+1st Quartile:   33.252813
+Median:         72.735385
+3rd Quartile:   134.030009
+Maximum:        1698.754521
