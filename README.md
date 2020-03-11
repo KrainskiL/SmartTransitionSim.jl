@@ -17,8 +17,8 @@ This is a repository containig a simulation model accompying the paper:
 
 *by Bogumił Kamiński, Łukasz Kraiński, Atefeh (Atty) Mashatan Paweł Prałat and Przemysław Szufel*
 
-*submitted to the Journal of Advanced Transportation*
-
+*Journal of Advanced Transportation, Volume 2020*
+[DOI](https://doi.org/10.1155/2020/3152020)
 
 ## Agent-based Simulation Framework for modelling transport systems  with partial smart vehicles penetration
 
